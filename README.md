@@ -111,4 +111,7 @@ Do not run commands outside the detected language/manifest.
 - Run npx tsc --noEmit and npm start locally before pushing changes.
 - If adding docs, follow .cursorrules style (code-first snippets, Mintlify components where used).
 
+
 If anything above is out-of-date, paste ls -la or tree output for the repo root and I
+<img width="1579" height="1001" alt="Screenshot 2026-05-16 at 4 28 07 PM" src="https://github.com/user-attachments/assets/8e9292ea-e224-48f5-9671-0955d573f0ef" />
+
