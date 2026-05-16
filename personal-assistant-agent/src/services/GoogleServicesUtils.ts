@@ -1,9 +1,11 @@
-export class GoogleServicesUtils {
-    private oauth2Client: any;
+import { google } from 'googleapis';
+import type { OAuth2Client } from 'google-auth-library';
 
+export class GoogleServicesUtils {
+    public oauth2Client: any;
     constructor(clientId: string, clientSecret: string, redirectUri: string) {
-        const { OAuth2 } = require('google-auth-library');
-        this.oauth2Client = new OAuth2(clientId, clientSecret, redirectUri);
+        // use google.auth.OAuth2 from googleapis; cast to OAuth2Client for typing
+        this.oauth2Client = new (google.auth as any).OAuth2(clientId, clientSecret, redirectUri) as OAuth2Client;
     }
 
     async authenticate(scopes: string[]): Promise<void> {
