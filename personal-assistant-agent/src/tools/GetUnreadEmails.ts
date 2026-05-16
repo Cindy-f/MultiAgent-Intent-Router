@@ -1,9 +1,7 @@
 import { google } from 'googleapis';
 import type { OAuth2Client } from 'google-auth-library';
 
-// Accept the authenticated OAuth2Client as the first argument
 export async function getUnreadEmails(auth: OAuth2Client, maxResults: number): Promise<any[]> {
-    // Pass the pre-authenticated client straight into the gmail service
     const gmail = google.gmail({ version: 'v1', auth });
 
     const response = await gmail.users.messages.list({
@@ -20,7 +18,21 @@ export async function getUnreadEmails(auth: OAuth2Client, maxResults: number): P
                 userId: 'me',
                 id: message.id,
             });
-            return emailResponse.data;
+
+            const fullDetails = emailResponse.data;
+            const headers = fullDetails.payload?.headers || [];
+
+            // Helper function to extract specific information from Google's header array
+            const getHeader = (name: string) =>
+                headers.find(h => h.name?.toLowerCase() === name.toLowerCase())?.value || 'Unknown';
+
+            return {
+                id: fullDetails.id,
+                from: getHeader('From'),
+                subject: getHeader('Subject'),
+                date: getHeader('Date'),
+                snippet: fullDetails.snippet,
+            };
         });
 
     return Promise.all(emailPromises);
