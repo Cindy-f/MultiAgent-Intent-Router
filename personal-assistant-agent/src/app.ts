@@ -10,9 +10,7 @@ async function main() {
         await assistant.authenticate();
         console.clear(); // Clears terminal artifacts for a seamless presentation dashboard
 
-        console.log(chalk.cyan.bold('\n======================================================'));
         console.log(chalk.cyan.bold('      🤖 PERSONAL ASSISTANT AGENT METRICS MAIN        '));
-        console.log(chalk.cyan.bold('======================================================\n'));
 
         // 1. Render Gmail Data inside a table layout
         console.log(chalk.yellow.bold('📥 UNREAD INBOX HIGHLIGHTS'));

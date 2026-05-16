@@ -26,9 +26,7 @@ export class GoogleServicesUtils {
             scope: scopes,
         });
 
-        console.log('\n========================================================================');
         console.log('Authorize this app by visiting this url:\n', authUrl);
-        console.log('========================================================================\n');
 
         // 3. Pause the terminal and wait for you to paste the authorization code
         const rl = readline.createInterface({
