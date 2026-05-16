@@ -1,8 +1,7 @@
-import * as Table from 'cli-table3';
 import 'dotenv/config';
 import { AssistantAgent } from './agents/assistant';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import Table = require('cli-table3');
 
 async function main() {
     const assistant = new AssistantAgent();
