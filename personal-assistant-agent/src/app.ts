@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { AssistantAgent } from './agents/assistant';
 
 async function main() {
