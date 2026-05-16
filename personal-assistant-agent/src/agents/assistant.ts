@@ -20,12 +20,14 @@ export class AssistantAgent {
 
     async checkUnreadEmails(maxResults = 10) {
         const { getUnreadEmails } = await import('../tools/GetUnreadEmails');
-        return await getUnreadEmails(maxResults);
+        // Pass the authenticated oauth2Client down into the tool function
+        return await getUnreadEmails(this.googleServices.oauth2Client, maxResults);
     }
 
     async fetchDailyMeetingSchedule(date: string) {
         const { fetchDailyMeetingSchedule } = await import('../tools/FetchDailyMeetingSchedule');
-        return await fetchDailyMeetingSchedule(date);
+        // Pass the authenticated oauth2Client down into the tool function
+        return await fetchDailyMeetingSchedule(this.googleServices.oauth2Client, date);
     }
 
     async getCurrentTime() {
