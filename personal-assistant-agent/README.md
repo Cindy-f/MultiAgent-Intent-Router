@@ -1,5 +1,3 @@
-# Disclaimer! The whole project was generated with Github Copilot for the purposes of experimenting with prompt engineering!!!
-
 # Personal Assistant Agent
 
 This project is a personal assistant agent that integrates with Google services to manage emails and calendar events. It utilizes OAuth for authentication and provides functionalities to check unread emails, fetch today's calendar schedule, and retrieve the current time.
