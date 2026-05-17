@@ -9,7 +9,9 @@ You can run the LLM **locally for free** with [Ollama](https://ollama.com), or u
 ```bash
 git clone https://github.com/Cindy-f/Personal_Assistant_Agent.git
 cd Personal_Assistant_Agent/personal-assistant-agent
-npm install
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
 ```
 
@@ -36,7 +38,7 @@ REDIRECT_URI=http://localhost:8080
 **Run chat mode:**
 
 ```bash
-npm start
+python -m src.app
 ```
 
 Example prompts: `What's on my calendar today?`, `Give me a quick morning briefing`, `What unread emails do I have?` — type `exit` to quit.
@@ -44,7 +46,7 @@ Example prompts: `What's on my calendar today?`, `Give me a quick morning briefi
 **Run table dashboard (no LLM):**
 
 ```bash
-npm run dashboard
+python -m src.dashboard
 ```
 
 ## How it works
@@ -64,9 +66,9 @@ flowchart LR
 | Component | Role |
 |-----------|------|
 | **LlmCoordinator** | Talks to the LLM, chooses tools, loops until it has a final reply |
-| **EmailAgent** | Unread Gmail via `GetUnreadEmails` |
-| **CalendarAgent** | Daily schedule via `FetchDailyMeetingSchedule` |
-| **TimeAgent** | Current time via `GetCurrentTime` |
+| **EmailAgent** | Unread Gmail via `get_unread_emails` |
+| **CalendarAgent** | Daily schedule via `fetch_daily_meeting_schedule` |
+| **TimeAgent** | Current time via `get_current_time` |
 
 The LLM does not call Google directly. It requests **tools**; the coordinator runs the right specialist agent and passes results back to the model.
 
@@ -97,34 +99,34 @@ On first run, follow the terminal link, paste the authorization code, and save `
 ```
 personal-assistant-agent/
 ├── src/
-│   ├── app.ts                    # Chat REPL (default: npm start)
-│   ├── dashboard.ts              # Table UI without LLM (npm run dashboard)
+│   ├── app.py                    # Chat REPL (python -m src.app)
+│   ├── dashboard.py              # Table UI without LLM
 │   ├── agents/
-│   │   ├── llmCoordinator.ts     # LLM + tool routing
-│   │   ├── emailAgent.ts
-│   │   ├── calendarAgent.ts
-│   │   ├── timeAgent.ts
-│   │   └── assistant.ts          # Legacy wrapper (deprecated)
+│   │   ├── llm_coordinator.py  # LLM + tool routing
+│   │   ├── email_agent.py
+│   │   ├── calendar_agent.py
+│   │   ├── time_agent.py
+│   │   └── assistant.py          # Legacy wrapper (deprecated)
 │   ├── config/
-│   │   └── llmConfig.ts          # Provider: ollama | groq | nvidia | openai
+│   │   └── llm_config.py         # Provider: ollama | groq | nvidia | openai
 │   ├── services/
-│   │   └── GoogleServicesUtils.ts
+│   │   └── google_services_utils.py
 │   └── tools/
-│       ├── GetUnreadEmails.ts
-│       ├── FetchDailyMeetingSchedule.ts
-│       └── GetCurrentTime.ts
-├── .env.example
-├── package.json
-└── tsconfig.json
+│       ├── get_unread_emails.py
+│       ├── fetch_daily_meeting_schedule.py
+│       └── get_current_time.py
+├── requirements.txt
+└── .env.example
 ```
 
 ## Scripts
 
+Run from `personal-assistant-agent/` with the virtualenv activated.
+
 | Command | Description |
 |---------|-------------|
-| `npm start` | Interactive chat with LLM coordinator |
-| `npm run dashboard` | Email + calendar tables (Google only) |
-| `npm run build` | Compile TypeScript to `dist/` |
+| `python -m src.app` | Interactive chat with LLM coordinator |
+| `python -m src.dashboard` | Email + calendar tables (Google only) |
 
 ## Example prompts
 
@@ -144,7 +146,8 @@ example terminal output:
 | `command not found: ollama` | Install: `brew install ollama`, then open a new terminal |
 | Connection refused on port 11434 | `brew services start ollama` |
 | OpenAI `insufficient_quota` | Use `LLM_PROVIDER=ollama` or add billing at [platform.openai.com](https://platform.openai.com) |
-| Wrong LLM provider | Set `LLM_PROVIDER` explicitly in `.env` and restart `npm start` |
+| Wrong LLM provider | Set `LLM_PROVIDER` explicitly in `.env` and restart `python -m src.app` |
+| `ModuleNotFoundError: src` | Run from `personal-assistant-agent/` directory |
 | Google auth fails | Check `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`; delete `token.json` and re-auth |
 
 **Never commit** `.env` or `token.json` — they contain secrets.
