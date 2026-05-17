@@ -1,51 +1,62 @@
 import 'dotenv/config';
-import { AssistantAgent } from './agents/assistant';
 import chalk from 'chalk';
-import Table = require('cli-table3');
+import * as readline from 'readline';
+import { LlmCoordinator } from './agents/llmCoordinator';
+
+function createPrompt(): readline.Interface {
+    return readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+}
 
 async function main() {
-    const assistant = new AssistantAgent();
+    const coordinator = new LlmCoordinator();
 
     try {
-        await assistant.authenticate();
-        console.clear(); // Clears terminal artifacts for a seamless presentation dashboard
+        console.log(chalk.cyan.bold('Authenticating with Google...'));
+        await coordinator.authenticate();
+        console.clear();
+        console.log(chalk.cyan.bold('Personal Assistant (LLM coordinator)'));
+        console.log(chalk.dim(`LLM: ${coordinator.llmLabel}`));
+        console.log(
+            chalk.dim(
+                'Ask about unread email, your calendar, or the time. Type "exit" to quit.\n'
+            )
+        );
 
-        console.log(chalk.cyan.bold('      🤖 PERSONAL ASSISTANT AGENT METRICS MAIN        '));
+        const rl = createPrompt();
 
-        // 1. Render Gmail Data inside a table layout
-        console.log(chalk.yellow.bold('📥 UNREAD INBOX HIGHLIGHTS'));
-        const unreadEmails = await assistant.checkUnreadEmails();
+        const ask = (): void => {
+            rl.question(chalk.yellow('You: '), async (input) => {
+                const trimmed = input.trim();
+                if (!trimmed) {
+                    ask();
+                    return;
+                }
+                if (trimmed.toLowerCase() === 'exit') {
+                    rl.close();
+                    return;
+                }
 
-        const emailTable = new Table({
-            head: [chalk.bold('From'), chalk.bold('Subject')],
-            colWidths: [30, 50]
-        });
+                try {
+                    process.stdout.write(chalk.dim('Thinking...\r'));
+                    const reply = await coordinator.chat(trimmed);
+                    process.stdout.write('\r\x1b[K');
+                    console.log(chalk.green('Assistant:'), reply, '\n');
+                } catch (error) {
+                    process.stdout.write('\r\x1b[K');
+                    console.error(chalk.red('Error:'), error, '\n');
+                }
 
-        unreadEmails.forEach(email => {
-            emailTable.push([email.from.substring(0, 28), email.subject.substring(0, 48)]);
-        });
-        console.log(emailTable.toString());
-
-        // 2. Render Calendar Timeline
-        console.log(chalk.green.bold('\n📅 TODAY\'S TIMELINE SCHEDULE'));
-        const today = new Date().toISOString().split('T')[0];
-        const dailySchedule = await assistant.fetchDailyMeetingSchedule(today);
-
-        if (dailySchedule.length === 0) {
-            console.log(chalk.dim('   No events scheduled for today.'));
-        } else {
-            dailySchedule.forEach((event: any) => {
-                console.log(`   ⏱️  ${chalk.bold(event.timeWindow)} ➡️ ${chalk.white(event.summary)}`);
+                ask();
             });
-        }
+        };
 
-        // 3. System Footers
-        const currentTime = await assistant.getCurrentTime();
-        console.log(chalk.dim(`\n📊 System Sync Time: ${currentTime}`));
-        console.log(chalk.cyan.bold('======================================================\n'));
-
+        ask();
     } catch (error) {
-        console.error(chalk.red.bold('Error during agent execution loop:'), error);
+        console.error(chalk.red.bold('Failed to start assistant:'), error);
+        process.exit(1);
     }
 }
 

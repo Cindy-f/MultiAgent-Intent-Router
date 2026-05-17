@@ -1,37 +1,44 @@
 import { GoogleServicesUtils } from '../services/GoogleServicesUtils';
+import { EmailAgent } from './emailAgent';
+import { CalendarAgent } from './calendarAgent';
+import { TimeAgent } from './timeAgent';
 
+/**
+ * @deprecated Use LlmCoordinator for chat, or specialist agents directly.
+ */
 export class AssistantAgent {
-    private googleServices: GoogleServicesUtils;
+    private readonly google: GoogleServicesUtils;
+    private readonly emailAgent: EmailAgent;
+    private readonly calendarAgent: CalendarAgent;
+    private readonly timeAgent: TimeAgent;
 
     constructor() {
-        this.googleServices = new GoogleServicesUtils(
+        this.google = new GoogleServicesUtils(
             process.env.CLIENT_ID || '',
             process.env.CLIENT_SECRET || '',
             process.env.REDIRECT_URI || ''
         );
+        this.emailAgent = new EmailAgent(this.google);
+        this.calendarAgent = new CalendarAgent(this.google);
+        this.timeAgent = new TimeAgent();
     }
 
     async authenticate() {
-        await this.googleServices.authenticate([
+        await this.google.authenticate([
             'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/calendar.events.readonly',
         ]);
     }
 
     async checkUnreadEmails(maxResults = 10) {
-        const { getUnreadEmails } = await import('../tools/GetUnreadEmails');
-        // Pass the authenticated oauth2Client down into the tool function
-        return await getUnreadEmails(this.googleServices.oauth2Client, maxResults);
+        return this.emailAgent.checkUnreadEmails(maxResults);
     }
 
     async fetchDailyMeetingSchedule(date: string) {
-        const { fetchDailyMeetingSchedule } = await import('../tools/FetchDailyMeetingSchedule');
-        // Pass the authenticated oauth2Client down into the tool function
-        return await fetchDailyMeetingSchedule(this.googleServices.oauth2Client, date);
+        return this.calendarAgent.fetchDailyMeetingSchedule(date);
     }
 
     async getCurrentTime() {
-        const { getCurrentTime } = await import('../tools/GetCurrentTime');
-        return await getCurrentTime();
+        return this.timeAgent.getCurrentTime();
     }
 }
