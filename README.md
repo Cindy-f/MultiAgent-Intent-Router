@@ -129,7 +129,7 @@ Run from `personal-assistant-agent/` with the virtualenv activated.
 - What time is it?
 
 example terminal output:
-<img width="943" height="392" alt="Screenshot 2026-05-16 at 7 13 06 PM" src="https://github.com/user-attachments/assets/a39e373b-8e90-4de8-855d-b2acd26dda96" />
+<img width="1355" height="1004" alt="Screenshot 2026-05-16 at 8 25 56 PM" src="https://github.com/user-attachments/assets/1dae8583-1a3b-4b96-a36d-4858bcd1ed0e" />
 
 ## Troubleshooting
 
