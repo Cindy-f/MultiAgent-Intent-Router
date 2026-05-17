@@ -1,3 +1,4 @@
+<img width="941" height="388" alt="Screenshot 2026-05-16 at 7 12 52 PM" src="https://github.com/user-attachments/assets/492e8fbe-b8f9-4851-8f0f-7a72ed86e105" />
 # Personal Assistant Agent
 
 A multi-agent personal assistant that connects to **Gmail** and **Google Calendar**. An **LLM coordinator** understands natural-language questions, calls specialist agents, and returns a readable answer in the terminal.
@@ -133,6 +134,9 @@ personal-assistant-agent/
 - What meetings do I have tomorrow?
 - Give me a quick morning briefing.
 - What time is it?
+
+example terminal output:
+<img width="943" height="392" alt="Screenshot 2026-05-16 at 7 13 06 PM" src="https://github.com/user-attachments/assets/a39e373b-8e90-4de8-855d-b2acd26dda96" />
 
 ## Troubleshooting
 
