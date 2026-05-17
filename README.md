@@ -1,4 +1,3 @@
-<img width="941" height="388" alt="Screenshot 2026-05-16 at 7 12 52 PM" src="https://github.com/user-attachments/assets/492e8fbe-b8f9-4851-8f0f-7a72ed86e105" />
 # Personal Assistant Agent
 
 A multi-agent personal assistant that connects to **Gmail** and **Google Calendar**. An **LLM coordinator** understands natural-language questions, calls specialist agents, and returns a readable answer in the terminal.
