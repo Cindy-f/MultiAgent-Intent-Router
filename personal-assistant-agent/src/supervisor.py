@@ -18,7 +18,7 @@ Routing rules:
 - Email-only questions → delegate_to_email_agent
 - Calendar-only questions → delegate_to_calendar_agent
 - Questions needing both (e.g. "find X in email then check my schedule", morning briefing) → delegate in order; pass each agent's output as prior_context to the next
-- Current time → get_current_time
+- Current time → get_current_time (returns local time; quote the display field verbatim)
 
 For multi-step tasks:
 1. Run the email agent first when email data is needed.
@@ -74,7 +74,7 @@ SUPERVISOR_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_current_time",
-            "description": "Get current system time in ISO format.",
+            "description": "Get current local date/time. Response includes display (use this for the user), timezone, and iso.",
             "parameters": {"type": "object", "properties": {}},
         },
     },
@@ -160,6 +160,6 @@ class SupervisorAgent:
             return {"agent": "calendar", "output": output}
 
         if name == "get_current_time":
-            return {"time": self.time_agent.get_current_time()}
+            return self.time_agent.get_current_time()
 
         raise RuntimeError(f"Supervisor: unknown tool {name}")

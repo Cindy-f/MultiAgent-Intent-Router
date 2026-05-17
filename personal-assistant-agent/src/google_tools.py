@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, List, Optional
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from src.dates import local_day_bounds, local_time_zone
+from src.dates import local_day_bounds, local_now_info, local_time_zone
 
 
 @dataclass
@@ -36,8 +36,8 @@ class DailyScheduleResult:
         }
 
 
-def get_current_time() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+def get_current_time() -> dict[str, str]:
+    return local_now_info()
 
 
 def get_unread_emails(auth: Credentials, max_results: int) -> List[dict[str, Any]]:

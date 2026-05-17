@@ -36,8 +36,8 @@ def main() -> None:
                     f"   ⏱️  {Colors.BOLD}{event.time_window}{Colors.RESET} ➡️ {event.summary}"
                 )
 
-        current_time = coordinator.time.get_current_time()
-        print(Colors.dim(f"\n📊 System Sync Time: {current_time}"))
+        clock = coordinator.time.get_current_time()
+        print(Colors.dim(f"\n📊 Local time ({clock['timezone']}): {clock['display']}"))
         print(Colors.cyan_bold("======================================================\n"))
 
     except Exception as error:

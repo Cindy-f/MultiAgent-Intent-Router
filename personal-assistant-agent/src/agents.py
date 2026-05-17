@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Dict, List
 
 from src.google_auth import GoogleServicesUtils
 from src.google_tools import (
@@ -29,5 +29,5 @@ class CalendarAgent(BaseAgent):
 
 
 class TimeAgent:
-    def get_current_time(self) -> str:
+    def get_current_time(self) -> Dict[str, Any]:
         return get_current_time()
