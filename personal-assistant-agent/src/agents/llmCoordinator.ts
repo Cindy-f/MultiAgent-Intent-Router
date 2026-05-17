@@ -4,6 +4,7 @@ import { GoogleServicesUtils } from '../services/GoogleServicesUtils';
 import { EmailAgent } from './emailAgent';
 import { CalendarAgent } from './calendarAgent';
 import { TimeAgent } from './timeAgent';
+import { localIsoDate } from '../utils/dateUtils';
 
 const GOOGLE_SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
@@ -19,7 +20,9 @@ When presenting results:
 - Be concise and readable.
 - For emails, highlight sender and subject.
 - For calendar events, show time windows and titles.
-- If a tool returns an empty list, say so clearly.`;
+- Always call fetch_daily_schedule for calendar questions; never guess.
+- fetch_daily_schedule returns { date, timeZone, events }. If events is empty, say no events for that date.
+- For "today", omit the date argument so the tool uses the user's local today.`;
 
 const COORDINATOR_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     {
@@ -42,13 +45,15 @@ const COORDINATOR_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         type: 'function',
         function: {
             name: 'fetch_daily_schedule',
-            description: 'Fetch calendar events for a specific date (YYYY-MM-DD).',
+            description:
+                'Fetch Google Calendar events for one day in the user local timezone. Omit date for today.',
             parameters: {
                 type: 'object',
                 properties: {
                     date: {
                         type: 'string',
-                        description: 'Date in YYYY-MM-DD format. Defaults to today if omitted.',
+                        description:
+                            'Optional. Local calendar date YYYY-MM-DD. Leave empty for today.',
                     },
                 },
             },
@@ -66,10 +71,6 @@ const COORDINATOR_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         },
     },
 ];
-
-function todayIsoDate(): string {
-    return new Date().toISOString().split('T')[0];
-}
 
 export class LlmCoordinator {
     private readonly openai: OpenAI;
@@ -175,9 +176,9 @@ export class LlmCoordinator {
             }
             case 'fetch_daily_schedule': {
                 const date =
-                    typeof args.date === 'string' && args.date
-                        ? args.date
-                        : todayIsoDate();
+                    typeof args.date === 'string' && args.date.trim()
+                        ? args.date.trim()
+                        : localIsoDate();
                 return this.calendarAgent.fetchDailyMeetingSchedule(date);
             }
             case 'get_current_time':

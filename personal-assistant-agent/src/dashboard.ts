@@ -2,6 +2,7 @@ import 'dotenv/config';
 import chalk from 'chalk';
 import Table = require('cli-table3');
 import { LlmCoordinator } from './agents/llmCoordinator';
+import { localIsoDate } from './utils/dateUtils';
 
 async function main() {
     const coordinator = new LlmCoordinator();
@@ -26,13 +27,12 @@ async function main() {
         console.log(emailTable.toString());
 
         console.log(chalk.green.bold("\n📅 TODAY'S TIMELINE SCHEDULE"));
-        const today = new Date().toISOString().split('T')[0];
-        const dailySchedule = await coordinator.calendar.fetchDailyMeetingSchedule(today);
+        const dailySchedule = await coordinator.calendar.fetchDailyMeetingSchedule(localIsoDate());
 
-        if (dailySchedule.length === 0) {
+        if (dailySchedule.events.length === 0) {
             console.log(chalk.dim('   No events scheduled for today.'));
         } else {
-            dailySchedule.forEach((event: { timeWindow: string; summary: string }) => {
+            dailySchedule.events.forEach((event: { timeWindow: string; summary: string }) => {
                 console.log(`   ⏱️  ${chalk.bold(event.timeWindow)} ➡️ ${chalk.white(event.summary)}`);
             });
         }
