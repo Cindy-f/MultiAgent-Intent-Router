@@ -8,9 +8,9 @@ Run the LLM **locally for free** with [Ollama](https://ollama.com), or use Groq,
 
 Supervisor routing email and calendar requests in the terminal (Ollama + Google OAuth):
 
-<video controls src="assets/MultiAgent.mp4" width="100%"></video>
+![Demo — supervisor delegates to email and calendar specialists](assets/MultiAgent-demo.gif)
 
-[Download demo video](assets/MultiAgent.mp4)
+*Preview (first 20s). [Full demo video with audio](assets/MultiAgent.mp4) — MP4 files in git show as download links on GitHub; the GIF above plays inline automatically.*
 
 ## Quick start
 
