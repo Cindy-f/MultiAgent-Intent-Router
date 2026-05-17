@@ -15,7 +15,7 @@ def main() -> None:
         print(Colors.cyan_bold("Authenticating with Google..."))
         coordinator.authenticate()
         print("\033[2J\033[H", end="")
-        print(Colors.cyan_bold("Personal Assistant (LLM coordinator)"))
+        print(Colors.cyan_bold("Personal Assistant (Supervisor + specialists)"))
         print(Colors.dim(f"LLM: {coordinator.llm_label}"))
         print(
             Colors.dim(
