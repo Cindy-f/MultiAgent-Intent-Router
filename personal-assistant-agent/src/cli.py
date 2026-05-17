@@ -31,10 +31,6 @@ class Colors:
     def dim(cls, text: str) -> str:
         return f"{cls.DIM}{text}{cls.RESET}"
 
-    @classmethod
-    def white(cls, text: str) -> str:
-        return f"{text}{cls.RESET}"
-
 
 def print_table(headers: list[str], rows: list[list[str]], col_widths: list[int]) -> None:
     border = "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"

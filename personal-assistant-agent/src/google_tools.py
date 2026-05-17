@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from src.utils.date_utils import local_day_bounds, local_time_zone
+from src.dates import local_day_bounds, local_time_zone
 
 
 @dataclass
@@ -36,6 +36,53 @@ class DailyScheduleResult:
         }
 
 
+def get_current_time() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def get_unread_emails(auth: Credentials, max_results: int) -> List[dict[str, Any]]:
+    gmail = build("gmail", "v1", credentials=auth)
+
+    response = (
+        gmail.users()
+        .messages()
+        .list(userId="me", q="is:unread", maxResults=max_results)
+        .execute()
+    )
+
+    messages = response.get("messages") or []
+    emails: List[dict[str, Any]] = []
+
+    for message in messages:
+        if not message or not message.get("id"):
+            continue
+        email_response = (
+            gmail.users()
+            .messages()
+            .get(userId="me", id=message["id"])
+            .execute()
+        )
+        headers = (email_response.get("payload") or {}).get("headers") or []
+
+        def get_header(name: str) -> str:
+            for h in headers:
+                if (h.get("name") or "").lower() == name.lower():
+                    return h.get("value") or "Unknown"
+            return "Unknown"
+
+        emails.append(
+            {
+                "id": email_response.get("id"),
+                "from": get_header("From"),
+                "subject": get_header("Subject"),
+                "date": get_header("Date"),
+                "snippet": email_response.get("snippet"),
+            }
+        )
+
+    return emails
+
+
 def _format_event_time(iso_or_date: str) -> str:
     if "T" not in iso_or_date:
         return "All day"
@@ -46,9 +93,7 @@ def _format_event_time(iso_or_date: str) -> str:
     return dt.strftime("%I:%M %p").lstrip("0") or dt.strftime("%I:%M %p")
 
 
-def fetch_daily_meeting_schedule(
-    auth: Credentials, date: str
-) -> DailyScheduleResult:
+def fetch_daily_meeting_schedule(auth: Credentials, date: str) -> DailyScheduleResult:
     calendar = build("calendar", "v3", credentials=auth)
     time_zone = local_time_zone()
     bounds = local_day_bounds(date)

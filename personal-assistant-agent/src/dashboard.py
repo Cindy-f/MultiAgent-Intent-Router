@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.agents.llm_coordinator import LlmCoordinator
-from src.terminal_ui import Colors, print_table
-from src.utils.date_utils import local_iso_date
+from src.cli import Colors, print_table
+from src.coordinator import LlmCoordinator
+from src.dates import local_iso_date
 
 
 def main() -> None:
@@ -20,10 +20,7 @@ def main() -> None:
         print(Colors.yellow("📥 UNREAD INBOX HIGHLIGHTS"))
         unread_emails = coordinator.email.check_unread_emails()
         rows = [
-            [
-                email["from"][:28],
-                email["subject"][:48],
-            ]
+            [email["from"][:28], email["subject"][:48]]
             for email in unread_emails
         ]
         print_table(["From", "Subject"], rows, [30, 50])

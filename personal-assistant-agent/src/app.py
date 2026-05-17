@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.agents.llm_coordinator import LlmCoordinator
-from src.terminal_ui import Colors
+from src.cli import Colors
+from src.coordinator import LlmCoordinator
 
 
 def main() -> None:

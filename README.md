@@ -66,9 +66,9 @@ flowchart LR
 | Component | Role |
 |-----------|------|
 | **LlmCoordinator** | Talks to the LLM, chooses tools, loops until it has a final reply |
-| **EmailAgent** | Unread Gmail via `get_unread_emails` |
-| **CalendarAgent** | Daily schedule via `fetch_daily_meeting_schedule` |
-| **TimeAgent** | Current time via `get_current_time` |
+| **EmailAgent** | Unread Gmail (`google_tools`) |
+| **CalendarAgent** | Daily schedule (`google_tools`) |
+| **TimeAgent** | Current time (`google_tools`) |
 
 The LLM does not call Google directly. It requests **tools**; the coordinator runs the right specialist agent and passes results back to the model.
 
@@ -99,22 +99,14 @@ On first run, follow the terminal link, paste the authorization code, and save `
 ```
 personal-assistant-agent/
 ├── src/
-│   ├── app.py                    # Chat REPL (python -m src.app)
-│   ├── dashboard.py              # Table UI without LLM
-│   ├── agents/
-│   │   ├── llm_coordinator.py  # LLM + tool routing
-│   │   ├── email_agent.py
-│   │   ├── calendar_agent.py
-│   │   ├── time_agent.py
-│   │   └── assistant.py          # Legacy wrapper (deprecated)
-│   ├── config/
-│   │   └── llm_config.py         # Provider: ollama | groq | nvidia | openai
-│   ├── services/
-│   │   └── google_services_utils.py
-│   └── tools/
-│       ├── get_unread_emails.py
-│       ├── fetch_daily_meeting_schedule.py
-│       └── get_current_time.py
+│   ├── app.py           # Chat REPL (python -m src.app)
+│   ├── dashboard.py     # Table UI without LLM
+│   ├── coordinator.py   # LLM providers + tool routing
+│   ├── agents.py        # Email, calendar, time agents
+│   ├── google_auth.py   # Google OAuth + token.json
+│   ├── google_tools.py  # Gmail + Calendar API calls
+│   ├── dates.py         # Local timezone date helpers
+│   └── cli.py           # Terminal colors + table output
 ├── requirements.txt
 └── .env.example
 ```
