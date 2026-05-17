@@ -4,6 +4,14 @@ A **supervisor-style multi-agent** assistant for **Gmail** and **Google Calendar
 
 Run the LLM **locally for free** with [Ollama](https://ollama.com), or use Groq, NVIDIA NIM, or OpenAI.
 
+## Demo
+
+Supervisor routing email and calendar requests in the terminal (Ollama + Google OAuth):
+
+<video controls src="assets/MultiAgent.mp4" width="100%"></video>
+
+[Download demo video](assets/MultiAgent.mp4)
+
 ## Quick start
 
 ```bash
@@ -160,10 +168,6 @@ Run from `personal-assistant-agent/` with `.venv` activated.
 |---------|-------------|
 | `python -m src.app` | Chat with supervisor + specialists |
 | `python -m src.dashboard` | Unread email + today’s calendar tables |
-
-## Screenshot
-
-<img width="1351" height="1007" alt="Screenshot 2026-05-16 at 8 26 50 PM" src="https://github.com/user-attachments/assets/ebc6ccf9-2831-4bdc-b1c2-967d0f2f2e93" />
 
 ## Troubleshooting
 
