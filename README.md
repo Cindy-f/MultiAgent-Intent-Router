@@ -1,8 +1,8 @@
 # Personal Assistant Agent
 
-A multi-agent personal assistant that connects to **Gmail** and **Google Calendar**. An **LLM coordinator** understands natural-language questions, calls specialist agents, and returns a readable answer in the terminal.
+A **supervisor-style multi-agent** assistant for **Gmail** and **Google Calendar**. You chat in the terminal; a **Supervisor** routes your request to specialist agents, then returns one clear answer.
 
-You can run the LLM **locally for free** with [Ollama](https://ollama.com), or use cloud providers (Groq, NVIDIA NIM, OpenAI).
+Run the LLM **locally for free** with [Ollama](https://ollama.com), or use Groq, NVIDIA NIM, or OpenAI.
 
 ## Quick start
 
@@ -15,9 +15,9 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `.env` with your Google OAuth credentials (see [Google setup](#google-oauth-setup)).
+Edit `.env` with real Google OAuth values (not `your_client_id_here`) — see [Google setup](#google-oauth-setup).
 
-**Free local LLM (recommended):**
+**Ollama (free, local):**
 
 ```bash
 brew install ollama
@@ -25,9 +25,8 @@ brew services start ollama
 ollama pull llama3.1
 ```
 
-In `.env`:
-
 ```bash
+# .env
 LLM_PROVIDER=ollama
 OPENAI_MODEL=llama3.1
 CLIENT_ID=your_client_id.apps.googleusercontent.com
@@ -35,115 +34,151 @@ CLIENT_SECRET=your_client_secret
 REDIRECT_URI=http://localhost:8080
 ```
 
-**Run chat mode:**
+**Chat (supervisor + specialists):**
 
 ```bash
 python -m src.app
 ```
 
-Example prompts: `What's on my calendar today?`, `Give me a quick morning briefing`, `What unread emails do I have?` — type `exit` to quit.
-
-**Run table dashboard (no LLM):**
+**Dashboard (Google only, no LLM):**
 
 ```bash
 python -m src.dashboard
 ```
 
+Type `exit` to quit chat.
+
 ## How it works
 
 ```mermaid
-flowchart LR
-  You --> App
-  App --> LlmCoordinator
-  LlmCoordinator --> EmailAgent
-  LlmCoordinator --> CalendarAgent
-  LlmCoordinator --> TimeAgent
-  EmailAgent --> Gmail
-  CalendarAgent --> Calendar
-  TimeAgent --> SystemClock
+flowchart TB
+  You --> App[app.py]
+  App --> Orch[orchestrator.py]
+  Orch --> Sup[Supervisor]
+  Sup -->|email tasks| EmailSpec[Email Specialist]
+  Sup -->|calendar tasks| CalSpec[Calendar Specialist]
+  Sup -->|time| Time[Time]
+  EmailSpec --> Workers[agents.py]
+  CalSpec --> Workers
+  Workers --> Google[google_auth + google_tools]
+  Google --> Gmail[Gmail API]
+  Google --> CalAPI[Calendar API]
 ```
 
-| Component | Role |
-|-----------|------|
-| **LlmCoordinator** | Talks to the LLM, chooses tools, loops until it has a final reply |
-| **EmailAgent** | Unread Gmail (`google_tools`) |
-| **CalendarAgent** | Daily schedule (`google_tools`) |
-| **TimeAgent** | Current time (`google_tools`) |
+| Layer | File(s) | Job |
+|--------|---------|-----|
+| **Supervisor** | `supervisor.py` | Understand intent, delegate, combine answers |
+| **Email specialist** | `specialists/email_specialist.py` | Gmail-only prompt + unread email tool |
+| **Calendar specialist** | `specialists/calendar_specialist.py` | Calendar-only prompt + schedule tool |
+| **Workers** | `agents.py` | Call Google APIs with shared OAuth |
+| **OAuth** | `google_auth.py` | `token.json`, first-time login (unchanged) |
 
-The LLM does not call Google directly. It requests **tools**; the coordinator runs the right specialist agent and passes results back to the model.
+The Supervisor **does not** call Gmail or Calendar itself. It calls `delegate_to_email_agent` or `delegate_to_calendar_agent`. Each specialist runs its own tool loop, then the Supervisor writes the final reply.
+
+**Multi-step example:** “Find my manager’s email and check if I’m free this afternoon” → Supervisor → Email specialist → Supervisor passes result as context → Calendar specialist → final summary.
+
+## Example prompts
+
+**Email only**
+
+- What unread emails do I have?
+- Who emailed me recently?
+- Find emails from my manager.
+
+**Calendar only**
+
+- What's on my calendar today?
+- What meetings do I have tomorrow?
+- Am I free this afternoon?
+
+**Combined (supervisor coordinates both)**
+
+- Give me a quick morning briefing.
+- Summarize my day — email and calendar.
+- Find my manager's email and tell me if I'm free this afternoon.
+- Check LinkedIn emails, then show today's schedule.
+
+**Time**
+
+- What time is it?
+
+**Follow-ups** (same session): “Tell me more about the first email”, “What about tomorrow?”
+
+**Limits today:** read-only Gmail/Calendar — no sending email or creating events.
 
 ## LLM providers
 
-Set `LLM_PROVIDER` in `.env`. See `.env.example` for full templates.
+Set `LLM_PROVIDER` in `.env`. See `.env.example`.
 
 | Provider | Cost | `.env` |
 |----------|------|--------|
 | **Ollama** | Free (local) | `LLM_PROVIDER=ollama`, `OPENAI_MODEL=llama3.1` |
 | **Groq** | Free tier | `LLM_PROVIDER=groq`, `GROQ_API_KEY=gsk_...` |
 | **NVIDIA NIM** | Free credits often | `LLM_PROVIDER=nvidia`, `NVIDIA_API_KEY=nvapi-...` |
-| **OpenAI** | Paid / billing required | `OPENAI_API_KEY=sk-...` |
+| **OpenAI** | Paid / billing | `OPENAI_API_KEY=sk-...` |
 
-On startup, chat mode prints which LLM is active, for example: `LLM: Ollama (local) (llama3.1)`.
+On startup you should see: `Supervisor + specialists · Ollama (local) (llama3.1)` (provider may vary).
 
 ## Google OAuth setup
 
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
+1. Open [Google Cloud Console](https://console.cloud.google.com/).
 2. Enable **Gmail API** and **Google Calendar API**.
-3. Create **OAuth 2.0 Client ID** (Desktop or Web) with redirect URI `http://localhost:8080`.
-4. Copy **Client ID** and **Client secret** into `.env`.
+3. Create an **OAuth 2.0 Client ID** with redirect URI `http://localhost:8080`.
+4. Put **Client ID** and **Client secret** in `.env`.
 
-On first run, follow the terminal link, paste the authorization code, and save `token.json` (gitignored).
+First run: open the printed URL, authorize, paste the code. Saves `token.json` (gitignored). Works with tokens from the older Node app too.
 
 ## Project structure
 
 ```
 personal-assistant-agent/
 ├── src/
-│   ├── app.py           # Chat REPL (python -m src.app)
-│   ├── dashboard.py     # Table UI without LLM
-│   ├── coordinator.py   # LLM providers + tool routing
-│   ├── agents.py        # Email, calendar, time agents
-│   ├── google_auth.py   # Google OAuth + token.json
-│   ├── google_tools.py  # Gmail + Calendar API calls
-│   ├── dates.py         # Local timezone date helpers
-│   └── cli.py           # Terminal colors + table output
+│   ├── app.py                 # Chat entry (Main)
+│   ├── dashboard.py           # Table view, no LLM
+│   ├── orchestrator.py        # Wires supervisor + specialists
+│   ├── supervisor.py          # Router / delegation
+│   ├── specialists/
+│   │   ├── base.py
+│   │   ├── email_specialist.py
+│   │   └── calendar_specialist.py
+│   ├── agents.py              # Google API workers
+│   ├── google_auth.py         # OAuth2 (GoogleUtils)
+│   ├── google_tools.py        # Gmail + Calendar calls
+│   ├── llm_config.py          # Ollama / Groq / OpenAI / NVIDIA
+│   ├── dates.py               # Local timezone dates
+│   ├── cli.py                 # Terminal colors + tables
+│   └── coordinator.py         # Re-export for compatibility
 ├── requirements.txt
 └── .env.example
 ```
 
 ## Scripts
 
-Run from `personal-assistant-agent/` with the virtualenv activated.
+Run from `personal-assistant-agent/` with `.venv` activated.
 
 | Command | Description |
 |---------|-------------|
-| `python -m src.app` | Interactive chat with LLM coordinator |
-| `python -m src.dashboard` | Email + calendar tables (Google only) |
+| `python -m src.app` | Chat with supervisor + specialists |
+| `python -m src.dashboard` | Unread email + today’s calendar tables |
 
-## Example prompts
+## Screenshot
 
-- What unread emails do I have?
-- What's on my calendar today?
-- What meetings do I have tomorrow?
-- Give me a quick morning briefing.
-- What time is it?
-
-example terminal output:
 <img width="1351" height="1007" alt="Screenshot 2026-05-16 at 8 26 50 PM" src="https://github.com/user-attachments/assets/ebc6ccf9-2831-4bdc-b1c2-967d0f2f2e93" />
-
 
 ## Troubleshooting
 
 | Problem | What to do |
 |---------|------------|
-| `command not found: ollama` | Install: `brew install ollama`, then open a new terminal |
+| `client_id=your_client_id_here` in auth URL | Put real `CLIENT_ID` / `CLIENT_SECRET` in `.env` |
+| `command not found: ollama` | `brew install ollama`, new terminal tab |
 | Connection refused on port 11434 | `brew services start ollama` |
-| OpenAI `insufficient_quota` | Use `LLM_PROVIDER=ollama` or add billing at [platform.openai.com](https://platform.openai.com) |
-| Wrong LLM provider | Set `LLM_PROVIDER` explicitly in `.env` and restart `python -m src.app` |
-| `ModuleNotFoundError: src` | Run from `personal-assistant-agent/` directory |
-| Google auth fails | Check `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`; delete `token.json` and re-auth |
+| OpenAI `insufficient_quota` | Use `LLM_PROVIDER=ollama` or add billing |
+| Wrong LLM provider | Set `LLM_PROVIDER` in `.env`, restart app |
+| `ModuleNotFoundError: src` | Run commands inside `personal-assistant-agent/` |
+| Google auth / token errors | Fix `.env`, delete `token.json`, run again |
+| Invalid date / calendar empty | Restart app after updates; ask “calendar today” |
 
-**Never commit** `.env` or `token.json` — they contain secrets.
+**Never commit** `.env` or `token.json`.
 
 ## License
 
