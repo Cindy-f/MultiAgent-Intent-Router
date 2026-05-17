@@ -1,4 +1,4 @@
-# Personal Assistant Agent
+# MultiAgent Intent Router
 
 A **supervisor-style multi-agent** assistant for **Gmail** and **Google Calendar**. You chat in the terminal; a **Supervisor** routes your request to specialist agents, then returns one clear answer.
 
@@ -7,8 +7,8 @@ Run the LLM **locally for free** with [Ollama](https://ollama.com), or use Groq,
 ## Quick start
 
 ```bash
-git clone https://github.com/Cindy-f/Personal_Assistant_Agent.git
-cd Personal_Assistant_Agent/personal-assistant-agent
+git clone https://github.com/Cindy-f/MultiAgent-Intent-Router.git
+cd MultiAgent-Intent-Router/personal-assistant-agent
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
