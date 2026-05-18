@@ -10,6 +10,8 @@ MODEL_PRICING_PER_1M: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.00),
     "llama3.1": (0.0, 0.0),
+    "llama3.2:3b": (0.0, 0.0),
+    "llama-3.1-8b-instant": (0.05, 0.08),
     "llama-3.3-70b-versatile": (0.59, 0.79),
     "meta/llama-3.3-70b-instruct": (0.0, 0.0),
 }

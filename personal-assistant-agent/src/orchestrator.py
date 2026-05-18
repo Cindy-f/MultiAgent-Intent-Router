@@ -10,7 +10,7 @@ from typing import List
 
 from src.agents import CalendarAgent, EmailAgent, TimeAgent
 from src.google_auth import GoogleServicesUtils
-from src.llm_config import resolve_llm_settings
+from src.llm_config import describe_llm_settings, resolve_llm_settings
 from src.specialists.calendar_specialist import CalendarSpecialist
 from src.specialists.email_specialist import EmailSpecialist
 from src.supervisor import SupervisorAgent
@@ -31,7 +31,7 @@ class LlmCoordinator:
         llm = resolve_llm_settings()
         self.openai = llm.client
         self.model = llm.model
-        self.llm_label = f"Supervisor + specialists · {llm.label} ({llm.model})"
+        self.llm_label = f"Supervisor + specialists · {describe_llm_settings(llm)}"
 
         self.google = GoogleServicesUtils(
             os.environ.get("CLIENT_ID", ""),
@@ -55,6 +55,8 @@ class LlmCoordinator:
             self.email_specialist,
             self.calendar_specialist,
             self.time_agent,
+            self.email_worker,
+            self.calendar_worker,
         )
 
     @property

@@ -3,6 +3,7 @@ from typing import Any, List
 from src.agents import CalendarAgent
 from src.dates import resolve_schedule_date
 from src.specialists.base import SpecialistAgent
+from src.tool_summaries import format_schedule_for_llm
 
 CALENDAR_SYSTEM_PROMPT = """You are the Calendar Specialist for a personal assistant.
 
@@ -54,5 +55,8 @@ class CalendarSpecialist(SpecialistAgent):
         if name == "fetch_daily_schedule":
             date_str = resolve_schedule_date(args.get("date"))
             schedule = self.calendar_worker.fetch_daily_meeting_schedule(date_str)
-            return schedule.to_dict()
+            return {
+                "summary": format_schedule_for_llm(schedule),
+                "schedule": schedule.to_dict(),
+            }
         raise RuntimeError(f"Calendar specialist: unknown tool {name}")

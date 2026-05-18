@@ -1,7 +1,9 @@
 from typing import Any, List
 
 from src.agents import EmailAgent
+from src.google_tools import DEFAULT_UNREAD_MAX
 from src.specialists.base import SpecialistAgent
+from src.tool_summaries import format_emails_for_llm
 
 EMAIL_SYSTEM_PROMPT = """You are the Email Specialist for a personal assistant.
 
@@ -25,7 +27,7 @@ EMAIL_TOOLS = [
                 "properties": {
                     "maxResults": {
                         "type": "number",
-                        "description": "Max emails to return (default 10).",
+                        "description": "Max emails to return (default 5).",
                     },
                 },
             },
@@ -53,6 +55,10 @@ class EmailSpecialist(SpecialistAgent):
         if name == "check_unread_emails":
             max_results = args.get("maxResults")
             if not isinstance(max_results, (int, float)):
-                max_results = 10
-            return self.email_worker.check_unread_emails(int(max_results))
+                max_results = DEFAULT_UNREAD_MAX
+            emails = self.email_worker.check_unread_emails(int(max_results))
+            return {
+                "count": len(emails),
+                "summary": format_emails_for_llm(emails),
+            }
         raise RuntimeError(f"Email specialist: unknown tool {name}")

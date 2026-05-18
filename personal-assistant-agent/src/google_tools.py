@@ -1,11 +1,16 @@
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, List, Optional
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.http import BatchHttpRequest
 
-from src.dates import local_day_bounds, local_now_info, local_time_zone
+from src.dates import local_day_bounds, local_iso_date, local_now_info, local_time_zone
+
+DEFAULT_UNREAD_MAX = int(os.environ.get("GMAIL_MAX_RESULTS", "5"))
+_SNIPPET_MAX = int(os.environ.get("EMAIL_SNIPPET_MAX_CHARS", "120"))
 
 
 @dataclass
@@ -40,47 +45,81 @@ def get_current_time() -> dict[str, str]:
     return local_now_info()
 
 
-def get_unread_emails(auth: Credentials, max_results: int) -> List[dict[str, Any]]:
+def _truncate_snippet(snippet: str) -> str:
+    text = (snippet or "").replace("\n", " ").strip()
+    if len(text) <= _SNIPPET_MAX:
+        return text
+    return text[: _SNIPPET_MAX - 3] + "..."
+
+
+def _header_value(headers: List[dict[str, Any]], name: str) -> str:
+    for header in headers:
+        if (header.get("name") or "").lower() == name.lower():
+            return header.get("value") or "Unknown"
+    return "Unknown"
+
+
+def _parse_metadata_message(message: dict[str, Any]) -> dict[str, Any]:
+    headers = (message.get("payload") or {}).get("headers") or []
+    return {
+        "id": message.get("id"),
+        "from": _header_value(headers, "From"),
+        "subject": _header_value(headers, "Subject"),
+        "date": _header_value(headers, "Date"),
+        "snippet": _truncate_snippet(message.get("snippet") or ""),
+    }
+
+
+def _batch_fetch_messages(gmail: Any, message_ids: List[str]) -> List[dict[str, Any]]:
+    if not message_ids:
+        return []
+
+    by_id: dict[str, dict[str, Any]] = {}
+    errors: List[str] = []
+
+    def _callback(request_id: str, response: Any, exception: Optional[Exception]) -> None:
+        if exception is not None:
+            errors.append(str(exception))
+            return
+        if response:
+            by_id[request_id] = _parse_metadata_message(response)
+
+    batch: BatchHttpRequest = gmail.new_batch_http_request(callback=_callback)
+    for mid in message_ids:
+        batch.add(
+            gmail.users().messages().get(
+                userId="me",
+                id=mid,
+                format="metadata",
+                metadataHeaders=["From", "Subject", "Date"],
+            ),
+            request_id=mid,
+        )
+    batch.execute()
+
+    if errors and not by_id:
+        raise RuntimeError(f"Gmail batch fetch failed: {errors[0]}")
+
+    return [by_id[mid] for mid in message_ids if mid in by_id]
+
+
+def get_unread_emails(
+    auth: Credentials, max_results: int = DEFAULT_UNREAD_MAX
+) -> List[dict[str, Any]]:
+    """Fetch unread mail using one list call + batched metadata gets."""
     gmail = build("gmail", "v1", credentials=auth)
+    limit = max(1, min(int(max_results), 20))
 
     response = (
         gmail.users()
         .messages()
-        .list(userId="me", q="is:unread", maxResults=max_results)
+        .list(userId="me", q="is:unread", maxResults=limit)
         .execute()
     )
 
-    messages = response.get("messages") or []
-    emails: List[dict[str, Any]] = []
-
-    for message in messages:
-        if not message or not message.get("id"):
-            continue
-        email_response = (
-            gmail.users()
-            .messages()
-            .get(userId="me", id=message["id"])
-            .execute()
-        )
-        headers = (email_response.get("payload") or {}).get("headers") or []
-
-        def get_header(name: str) -> str:
-            for h in headers:
-                if (h.get("name") or "").lower() == name.lower():
-                    return h.get("value") or "Unknown"
-            return "Unknown"
-
-        emails.append(
-            {
-                "id": email_response.get("id"),
-                "from": get_header("From"),
-                "subject": get_header("Subject"),
-                "date": get_header("Date"),
-                "snippet": email_response.get("snippet"),
-            }
-        )
-
-    return emails
+    message_refs = response.get("messages") or []
+    ids = [m["id"] for m in message_refs if m and m.get("id")]
+    return _batch_fetch_messages(gmail, ids)
 
 
 def _format_event_time(iso_or_date: str) -> str:
@@ -93,10 +132,13 @@ def _format_event_time(iso_or_date: str) -> str:
     return dt.strftime("%I:%M %p").lstrip("0") or dt.strftime("%I:%M %p")
 
 
-def fetch_daily_meeting_schedule(auth: Credentials, date: str) -> DailyScheduleResult:
+def fetch_daily_meeting_schedule(
+    auth: Credentials, date: Optional[str] = None
+) -> DailyScheduleResult:
     calendar = build("calendar", "v3", credentials=auth)
     time_zone = local_time_zone()
-    bounds = local_day_bounds(date)
+    day = date or local_iso_date()
+    bounds = local_day_bounds(day)
 
     response = (
         calendar.events()
@@ -133,4 +175,4 @@ def fetch_daily_meeting_schedule(auth: Credentials, date: str) -> DailyScheduleR
             )
         )
 
-    return DailyScheduleResult(date=date, time_zone=time_zone, events=mapped)
+    return DailyScheduleResult(date=day, time_zone=time_zone, events=mapped)

@@ -25,22 +25,24 @@ cp .env.example .env
 
 Edit `.env` with real Google OAuth values (not `your_client_id_here`) — see [Google setup](#google-oauth-setup).
 
-**Ollama (free, local):**
+**Ollama (free, local — use the smaller default model for speed):**
 
 ```bash
 brew install ollama
 brew services start ollama
-ollama pull llama3.1
+ollama pull llama3.2:3b
 ```
 
 ```bash
 # .env
 LLM_PROVIDER=ollama
-OPENAI_MODEL=llama3.1
+OPENAI_MODEL=llama3.2:3b
 CLIENT_ID=your_client_id.apps.googleusercontent.com
 CLIENT_SECRET=your_client_secret
 REDIRECT_URI=http://localhost:8080
 ```
+
+**Groq (fastest option, free tier):** set `LLM_PROVIDER=groq`, `GROQ_API_KEY=gsk_...`, and optionally `OPENAI_MODEL=llama-3.1-8b-instant`.
 
 **Chat (supervisor + specialists):**
 
@@ -62,28 +64,27 @@ Type `exit` to quit chat.
 flowchart TB
   You --> App[app.py]
   App --> Orch[orchestrator.py]
-  Orch --> Sup[Supervisor]
-  Sup -->|email tasks| EmailSpec[Email Specialist]
-  Sup -->|calendar tasks| CalSpec[Calendar Specialist]
-  Sup -->|time| Time[Time]
-  EmailSpec --> Workers[agents.py]
-  CalSpec --> Workers
+  Orch --> Router[intent_router + fast_paths]
+  Router -->|common prompts| OneLLM[1 LLM + parallel Google]
+  Router -->|complex| Sup[Supervisor]
+  Sup -->|direct tools| Workers[agents.py]
+  Sup -->|hard tasks| Spec[Specialists]
   Workers --> Google[google_auth + google_tools]
-  Google --> Gmail[Gmail API]
+  Google --> Gmail[Gmail batch API]
   Google --> CalAPI[Calendar API]
 ```
 
 | Layer | File(s) | Job |
 |--------|---------|-----|
-| **Supervisor** | `supervisor.py` | Understand intent, delegate, combine answers |
-| **Email specialist** | `specialists/email_specialist.py` | Gmail-only prompt + unread email tool |
-| **Calendar specialist** | `specialists/calendar_specialist.py` | Calendar-only prompt + schedule tool |
-| **Workers** | `agents.py` | Call Google APIs with shared OAuth |
+| **Fast paths** | `intent_router.py`, `fast_paths.py` | Skip extra LLM hops for time, unread, calendar today, briefing |
+| **Supervisor** | `supervisor.py` | Direct Gmail/Calendar tools; delegates only when needed |
+| **Specialists** | `specialists/*` | Complex email/calendar reasoning (max 1 tool round) |
+| **Workers** | `agents.py` | Google APIs + short-lived cache |
 | **OAuth** | `google_auth.py` | `token.json`, first-time login (unchanged) |
 
-The Supervisor **does not** call Gmail or Calendar itself. It calls `delegate_to_email_agent` or `delegate_to_calendar_agent`. Each specialist runs its own tool loop, then the Supervisor writes the final reply.
+**Typical flow today:** “What unread emails do I have?” → intent router → batched Gmail fetch → **one** LLM call to format the answer (not four).
 
-**Multi-step example:** “Find my manager’s email and check if I’m free this afternoon” → Supervisor → Email specialist → Supervisor passes result as context → Calendar specialist → final summary.
+**Multi-step example:** “Morning briefing” → parallel unread + calendar fetch → **one** synthesis LLM call.
 
 ## Example prompts
 
@@ -118,14 +119,33 @@ The Supervisor **does not** call Gmail or Calendar itself. It calls `delegate_to
 
 Set `LLM_PROVIDER` in `.env`. See `.env.example`.
 
-| Provider | Cost | `.env` |
-|----------|------|--------|
-| **Ollama** | Free (local) | `LLM_PROVIDER=ollama`, `OPENAI_MODEL=llama3.1` |
-| **Groq** | Free tier | `LLM_PROVIDER=groq`, `GROQ_API_KEY=gsk_...` |
-| **NVIDIA NIM** | Free credits often | `LLM_PROVIDER=nvidia`, `NVIDIA_API_KEY=nvapi-...` |
-| **OpenAI** | Paid / billing | `OPENAI_API_KEY=sk-...` |
+| Provider | Speed | Cost | Default model |
+|----------|-------|------|----------------|
+| **Groq** | Fastest | Free tier | `llama-3.1-8b-instant` |
+| **Ollama** | Medium (GPU helps) | Free (local) | `llama3.2:3b` |
+| **NVIDIA NIM** | Fast | Free credits often | `meta/llama-3.3-70b-instruct` |
+| **OpenAI** | Fast | Paid | `gpt-4o-mini` |
 
-On startup you should see: `Supervisor + specialists · Ollama (local) (llama3.1)` (provider may vary).
+Override any model with `OPENAI_MODEL=...` in `.env`.
+
+On startup you should see: `Supervisor + specialists · Ollama (local) (llama3.2:3b)` (provider may vary).
+
+## Performance
+
+Optimizations built in:
+
+| Change | What it does |
+|--------|----------------|
+| **Gmail batch + metadata** | One list + batched `messages.get` (headers only), not N sequential full fetches |
+| **Intent fast paths** | Time = 0 LLM; unread / calendar / briefing = 1 LLM; combo prompts = parallel Google + 1 LLM |
+| **Supervisor direct tools** | Simple reads skip specialist sub-agents |
+| **Compact tool payloads** | Truncated snippets and text summaries → smaller, faster LLM calls |
+| **Session cache** | Unread + today’s calendar cached ~60s (`GOOGLE_CACHE_TTL_SEC`) |
+| **Faster default models** | `llama3.2:3b` (Ollama) or Groq `llama-3.1-8b-instant` |
+
+Optional `.env` tuning: `GMAIL_MAX_RESULTS=5`, `EMAIL_SNIPPET_MAX_CHARS=120`, `DEBUG_TIMING=1`.
+
+Re-run timing: `python scripts/live_eval.py` — expect much lower wall time vs. the earlier multi-agent runs.
 
 ## Google OAuth setup
 
@@ -151,7 +171,12 @@ personal-assistant-agent/
 │   │   └── calendar_specialist.py
 │   ├── agents.py              # Google API workers
 │   ├── google_auth.py         # OAuth2 (GoogleUtils)
-│   ├── google_tools.py        # Gmail + Calendar calls
+│   ├── google_tools.py        # Gmail batch + Calendar calls
+│   ├── google_cache.py        # Short-lived API cache
+│   ├── intent_router.py       # Fast-path intent detection
+│   ├── fast_paths.py          # 0–1 LLM hop handlers
+│   ├── tool_summaries.py      # Compact data for the LLM
+│   ├── telemetry.py           # Wall-clock LLM/tool timing
 │   ├── llm_config.py          # Ollama / Groq / OpenAI / NVIDIA
 │   ├── dates.py               # Local timezone dates
 │   ├── cli.py                 # Terminal colors + tables
@@ -199,8 +224,11 @@ After a run, a summary table is saved to `tests/results/live_eval_summary.txt` (
 | `client_id=your_client_id_here` in auth URL | Put real `CLIENT_ID` / `CLIENT_SECRET` in `.env` |
 | `command not found: ollama` | `brew install ollama`, new terminal tab |
 | Connection refused on port 11434 | `brew services start ollama` |
+| Ollama model not found | `ollama pull llama3.2:3b` or set `OPENAI_MODEL=llama3.1` |
+| Still slow | Try `LLM_PROVIDER=groq` or keep Ollama model loaded (`ollama run llama3.2:3b`) |
 | OpenAI `insufficient_quota` | Use `LLM_PROVIDER=ollama` or add billing |
 | Wrong LLM provider | Set `LLM_PROVIDER` in `.env`, restart app |
+| `401` / `Invalid API Key` in live eval | `LLM_PROVIDER=ollama` but `OPENAI_BASE_URL` still points at Groq is the usual cause. Remove or fix `OPENAI_BASE_URL`, confirm startup prints `host=localhost:11434`. For Groq, set `LLM_PROVIDER=groq` and a valid `GROQ_API_KEY=gsk_...`. Run `ollama pull llama3.2:3b` if the model is missing. |
 | `ModuleNotFoundError: src` | Run commands inside `personal-assistant-agent/` |
 | Google auth / token errors | Fix `.env`, delete `token.json`, run again |
 | Invalid date / calendar empty | Restart app after updates; ask “calendar today” |

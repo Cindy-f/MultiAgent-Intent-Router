@@ -11,7 +11,12 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-from src.llm_config import resolve_llm_settings
+from src.llm_config import (
+    OLLAMA_BASE_URL,
+    augment_llm_auth_error,
+    describe_llm_settings,
+    resolve_llm_settings,
+)
 from src.orchestrator import LlmCoordinator
 from src.telemetry import telemetry
 
@@ -50,9 +55,7 @@ DEFAULT_LIVE_PROMPTS: List[LivePrompt] = [
 
 
 def ollama_reachable(base_url: Optional[str] = None) -> bool:
-    url = (base_url or os.environ.get("OPENAI_BASE_URL") or "http://localhost:11434/v1").rstrip(
-        "/"
-    )
+    url = (base_url or OLLAMA_BASE_URL).rstrip("/")
     if not url.endswith("/api/tags"):
         url = url.replace("/v1", "") + "/api/tags"
     try:
@@ -77,7 +80,8 @@ def run_live_eval(
     results: List[LiveEvalResult] = []
 
     llm = resolve_llm_settings()
-    if llm.provider == "ollama" and not ollama_reachable():
+    print(f"LLM config: {describe_llm_settings(llm)}")
+    if llm.provider == "ollama" and not ollama_reachable(llm.base_url):
         raise RuntimeError(
             "Ollama is not reachable. Start it with: brew services start ollama"
         )
@@ -122,7 +126,7 @@ def run_live_eval(
             success = bool(reply and reply.strip() and reply != "(No response)")
             print(f"Reply ({len(reply)} chars): {reply[:200]}{'...' if len(reply) > 200 else ''}")
         except Exception as exc:
-            error = str(exc)[:300]
+            error = augment_llm_auth_error(str(exc)[:300], llm)
             print(f"FAILED: {error}")
 
         wall_ms = (time.perf_counter() - wall_start) * 1000

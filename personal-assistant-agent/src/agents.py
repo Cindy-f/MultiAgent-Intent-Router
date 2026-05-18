@@ -1,7 +1,10 @@
+import os
 from typing import Any, Dict, List
 
 from src.google_auth import GoogleServicesUtils
+from src.google_cache import TimedCache
 from src.google_tools import (
+    DEFAULT_UNREAD_MAX,
     DailyScheduleResult,
     fetch_daily_meeting_schedule,
     get_current_time,
@@ -15,17 +18,52 @@ class BaseAgent:
 
 
 class EmailAgent(BaseAgent):
-    def check_unread_emails(self, max_results: int = 10) -> List[dict[str, Any]]:
+    def __init__(self, google: GoogleServicesUtils) -> None:
+        super().__init__(google)
+        self._unread_cache: TimedCache[List[dict[str, Any]]] = TimedCache()
+
+    def check_unread_emails(
+        self, max_results: int = DEFAULT_UNREAD_MAX, *, use_cache: bool = True
+    ) -> List[dict[str, Any]]:
         if not self.google.oauth2_client:
             raise RuntimeError("Google client not authenticated")
-        return get_unread_emails(self.google.oauth2_client, max_results)
+
+        limit = max(1, min(int(max_results), 20))
+        if use_cache:
+            cached = self._unread_cache.get()
+            if cached is not None:
+                return cached[:limit]
+
+        emails = get_unread_emails(self.google.oauth2_client, limit)
+        self._unread_cache.set(emails)
+        return emails
+
+    def clear_cache(self) -> None:
+        self._unread_cache.clear()
 
 
 class CalendarAgent(BaseAgent):
-    def fetch_daily_meeting_schedule(self, date: str) -> DailyScheduleResult:
+    def __init__(self, google: GoogleServicesUtils) -> None:
+        super().__init__(google)
+        self._schedule_cache: TimedCache[DailyScheduleResult] = TimedCache()
+
+    def fetch_daily_meeting_schedule(
+        self, date: str, *, use_cache: bool = True
+    ) -> DailyScheduleResult:
         if not self.google.oauth2_client:
             raise RuntimeError("Google client not authenticated")
-        return fetch_daily_meeting_schedule(self.google.oauth2_client, date)
+
+        if use_cache:
+            cached = self._schedule_cache.get()
+            if cached is not None and cached.date == date:
+                return cached
+
+        schedule = fetch_daily_meeting_schedule(self.google.oauth2_client, date)
+        self._schedule_cache.set(schedule)
+        return schedule
+
+    def clear_cache(self) -> None:
+        self._schedule_cache.clear()
 
 
 class TimeAgent:
