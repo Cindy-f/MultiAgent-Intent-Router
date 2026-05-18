@@ -209,13 +209,18 @@ python -m pytest
 
 Set `DEBUG_TIMING=1` (default) to print per-step LLM and tool timings during runs.
 
-After a run, a summary table is saved to `tests/results/live_eval_summary.txt` (script) or `tests/results/test_summary.txt` (pytest) with:
+After a run, the full table is saved to `tests/results/live_eval_summary.txt` (script) or `tests/results/test_summary.txt` (pytest). Example results with **Ollama** (`llama3.2:3b`) and fast paths enabled:
 
-- **Task success rate** (pass/fail per prompt)
-- **Wall time (seconds)** per prompt and total
-- **LLM calls** and separate **LLM vs tool/API** time
-- **Token usage** when the provider returns usage metadata
-- **Estimated cost ($)** from model pricing (Ollama local = $0)
+| Test | Result | Wall (s) | LLM calls | LLM (s) | Tools (s) | Tokens (prompt + completion) |
+|------|--------|----------|-----------|---------|-----------|------------------------------|
+| What time is it now? | PASS | 0.0 | 0 | 0.0 | 0.0 | 0 |
+| What's on my calendar today? | PASS | 2.2 | 1 | 2.1 | 0.2 | 79 + 32 |
+| What unread emails do I have? | PASS | 8.5 | 1 | 8.0 | 0.5 | 604 + 289 |
+| Give me a quick morning briefing. | PASS | 4.4 | 1 | 4.2 | 0.4 | 632 + 123 |
+| Find manager email + free this afternoon | PASS | 2.9 | 1 | 2.7 | 0.3 | 647 + 61 |
+| **Total (5 prompts)** | **5/5 (100%)** | **18.0** | **4** | **17.0** | **1.3** | **1962 + 505** |
+
+Times depend on your machine, model, and inbox size. Re-run `python scripts/live_eval.py` to refresh your own numbers.
 
 ## Troubleshooting
 
