@@ -168,6 +168,21 @@ Run from `personal-assistant-agent/` with `.venv` activated.
 |---------|-------------|
 | `python -m src.app` | Chat with supervisor + specialists |
 | `python -m src.dashboard` | Unread email + today’s calendar tables |
+| `python -m pytest tests/` | Unit + integration tests with metrics summary |
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests/
+```
+
+After the run, a summary table is printed and saved to `tests/results/test_summary.txt` with:
+
+- **Task success rate** (pass/fail per test)
+- **Latency (ms)** per test and total
+- **Token usage** (prompt / completion / total)
+- **Estimated cost ($)** using model pricing (mocked LLM in tests)
 
 ## Troubleshooting
 

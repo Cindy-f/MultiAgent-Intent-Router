@@ -1,5 +1,7 @@
 .env
 token.json
+tests/results/*
+!tests/results/.gitkeep
 __pycache__/
 *.py[cod]
 .venv/
