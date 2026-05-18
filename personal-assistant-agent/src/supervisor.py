@@ -6,6 +6,7 @@ from openai import OpenAI
 from src.agents import TimeAgent
 from src.specialists.calendar_specialist import CalendarSpecialist
 from src.specialists.email_specialist import EmailSpecialist
+from src.telemetry import chat_completion, telemetry
 
 SUPERVISOR_SYSTEM_PROMPT = """You are the Supervisor for a personal assistant with two specialist sub-agents:
 
@@ -99,11 +100,17 @@ class SupervisorAgent:
         self.time_agent = time_agent
         self.history: List[dict[str, Any]] = []
 
+    def reset_session(self) -> None:
+        self.history = []
+
     def chat(self, user_message: str) -> str:
         self.history.append({"role": "user", "content": user_message})
 
         while True:
-            response = self.client.chat.completions.create(
+            response = chat_completion(
+                self.client,
+                agent="supervisor",
+                label=f"turn_{len(self.history)}",
                 model=self.model,
                 messages=[{"role": "system", "content": SUPERVISOR_SYSTEM_PROMPT}]
                 + self.history,
@@ -123,10 +130,11 @@ class SupervisorAgent:
             for tool_call in message.tool_calls:
                 if tool_call.type != "function":
                     continue
-                result = self._run_supervisor_tool(
-                    tool_call.function.name,
-                    tool_call.function.arguments or "{}",
-                )
+                with telemetry.tool("supervisor", tool_call.function.name):
+                    result = self._run_supervisor_tool(
+                        tool_call.function.name,
+                        tool_call.function.arguments or "{}",
+                    )
                 self.history.append(
                     {
                         "role": "tool",

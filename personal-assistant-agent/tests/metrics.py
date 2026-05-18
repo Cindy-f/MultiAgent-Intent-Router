@@ -12,7 +12,6 @@ MODEL_PRICING_PER_1M: dict[str, tuple[float, float]] = {
     "llama3.1": (0.0, 0.0),
     "llama-3.3-70b-versatile": (0.59, 0.79),
     "meta/llama-3.3-70b-instruct": (0.0, 0.0),
-    "test-mock": (0.0, 0.0),
 }
 
 
@@ -24,8 +23,11 @@ class TestRecord:
     latency_ms: float
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    model: str = "test-mock"
+    model: str = ""
     error: Optional[str] = None
+    llm_calls: int = 0
+    llm_latency_ms: float = 0.0
+    tool_latency_ms: float = 0.0
 
     @property
     def total_tokens(self) -> int:
@@ -60,8 +62,11 @@ class MetricsStore:
         latency_ms: float,
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
-        model: str = "test-mock",
+        model: str = "",
         error: Optional[str] = None,
+        llm_calls: int = 0,
+        llm_latency_ms: float = 0.0,
+        tool_latency_ms: float = 0.0,
     ) -> None:
         cls.records.append(
             TestRecord(
@@ -73,6 +78,9 @@ class MetricsStore:
                 completion_tokens=completion_tokens,
                 model=model,
                 error=error,
+                llm_calls=llm_calls,
+                llm_latency_ms=llm_latency_ms,
+                tool_latency_ms=tool_latency_ms,
             )
         )
 
@@ -81,27 +89,37 @@ class MetricsStore:
         if not cls.records:
             return "No test metrics recorded."
 
+        has_live = any(r.test_type == "live" for r in cls.records)
         headers = (
             "Test",
             "Type",
             "OK",
-            "Latency (ms)",
+            "Wall (s)" if has_live else "Latency (ms)",
+            "LLM calls",
+            "LLM (s)",
+            "Tools (s)",
             "Prompt tok",
             "Completion tok",
-            "Total tok",
             "Est. cost ($)",
         )
         rows: List[tuple[str, ...]] = []
         for r in cls.records:
+            wall = (
+                f"{r.latency_ms / 1000:.1f}"
+                if has_live
+                else f"{r.latency_ms:.1f}"
+            )
             rows.append(
                 (
                     r.name,
                     r.test_type,
                     "PASS" if r.success else "FAIL",
-                    f"{r.latency_ms:.1f}",
+                    wall,
+                    str(r.llm_calls),
+                    f"{r.llm_latency_ms / 1000:.1f}",
+                    f"{r.tool_latency_ms / 1000:.1f}",
                     str(r.prompt_tokens),
                     str(r.completion_tokens),
-                    str(r.total_tokens),
                     f"{r.estimated_cost_usd:.6f}",
                 )
             )
@@ -109,7 +127,10 @@ class MetricsStore:
         passed = sum(1 for r in cls.records if r.success)
         total = len(cls.records)
         success_rate = (passed / total) * 100 if total else 0.0
-        total_latency = sum(r.latency_ms for r in cls.records)
+        total_wall = sum(r.latency_ms for r in cls.records)
+        total_llm_calls = sum(r.llm_calls for r in cls.records)
+        total_llm_ms = sum(r.llm_latency_ms for r in cls.records)
+        total_tool_ms = sum(r.tool_latency_ms for r in cls.records)
         total_prompt = sum(r.prompt_tokens for r in cls.records)
         total_completion = sum(r.completion_tokens for r in cls.records)
         total_cost = sum(r.estimated_cost_usd for r in cls.records)
@@ -119,10 +140,12 @@ class MetricsStore:
                 "— AGGREGATE —",
                 "all",
                 f"{passed}/{total} ({success_rate:.0f}%)",
-                f"{total_latency:.1f}",
+                f"{total_wall / 1000:.1f}" if has_live else f"{total_wall:.1f}",
+                str(total_llm_calls),
+                f"{total_llm_ms / 1000:.1f}",
+                f"{total_tool_ms / 1000:.1f}",
                 str(total_prompt),
                 str(total_completion),
-                str(total_prompt + total_completion),
                 f"{total_cost:.6f}",
             )
         )
@@ -142,9 +165,16 @@ class MetricsStore:
             *[fmt_row(row) for row in rows],
             "",
             f"Task success rate: {success_rate:.1f}% ({passed}/{total})",
-            f"Total LLM latency (sum of tests): {total_latency:.1f} ms",
-            f"Total tokens: {total_prompt + total_completion} "
-            f"(prompt {total_prompt}, completion {total_completion})",
-            f"Estimated total cost: ${total_cost:.6f}",
         ]
+        if has_live:
+            lines.append(f"Total wall time: {total_wall / 1000:.1f} s")
+            lines.append(f"Total LLM time: {total_llm_ms / 1000:.1f} s ({total_llm_calls} calls)")
+            lines.append(f"Total tool/API time: {total_tool_ms / 1000:.1f} s")
+        else:
+            lines.append(f"Total latency (sum of tests): {total_wall:.1f} ms")
+        lines.append(
+            f"Total tokens: {total_prompt + total_completion} "
+            f"(prompt {total_prompt}, completion {total_completion})"
+        )
+        lines.append(f"Estimated total cost: ${total_cost:.6f}")
         return "\n".join(lines)

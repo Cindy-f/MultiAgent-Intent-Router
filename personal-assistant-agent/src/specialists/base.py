@@ -4,6 +4,8 @@ from typing import Any, Callable, List, Optional
 
 from openai import OpenAI
 
+from src.telemetry import chat_completion, telemetry
+
 
 class SpecialistAgent(ABC):
     """LLM sub-agent with its own system prompt and tool loop."""
@@ -40,7 +42,10 @@ class SpecialistAgent(ABC):
         messages.append({"role": "user", "content": task})
 
         while True:
-            response = self.client.chat.completions.create(
+            response = chat_completion(
+                self.client,
+                agent=self.name,
+                label=f"turn_{len(messages)}",
                 model=self.model,
                 messages=messages,
                 tools=self.tools,
@@ -64,7 +69,8 @@ class SpecialistAgent(ABC):
                     raise RuntimeError(
                         f"{self.name}: invalid tool arguments for {tool_call.function.name}"
                     ) from exc
-                result = self.execute_tool(tool_call.function.name, args)
+                with telemetry.tool(self.name, tool_call.function.name):
+                    result = self.execute_tool(tool_call.function.name, args)
                 messages.append(
                     {
                         "role": "tool",

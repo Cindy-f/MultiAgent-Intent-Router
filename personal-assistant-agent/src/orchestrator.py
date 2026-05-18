@@ -72,5 +72,8 @@ class LlmCoordinator:
     def authenticate(self) -> None:
         self.google.authenticate(GOOGLE_SCOPES)
 
+    def reset_session(self) -> None:
+        self.supervisor.reset_session()
+
     def chat(self, user_message: str) -> str:
         return self.supervisor.chat(user_message)

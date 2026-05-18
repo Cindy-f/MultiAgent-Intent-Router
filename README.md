@@ -168,21 +168,29 @@ Run from `personal-assistant-agent/` with `.venv` activated.
 |---------|-------------|
 | `python -m src.app` | Chat with supervisor + specialists |
 | `python -m src.dashboard` | Unread email + today’s calendar tables |
-| `python -m pytest tests/` | Unit + integration tests with metrics summary |
+| `python scripts/live_eval.py` | Live eval: real Ollama + Google, wall-clock timing |
+| `python -m pytest` | Same prompts via pytest (slow) |
 
 ## Tests
 
+All tests use the **real** LLM (Ollama or your configured provider) and Google APIs — no mocks.
+
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest tests/
+python scripts/live_eval.py
+# or
+python -m pytest
 ```
 
-After the run, a summary table is printed and saved to `tests/results/test_summary.txt` with:
+Set `DEBUG_TIMING=1` (default) to print per-step LLM and tool timings during runs.
 
-- **Task success rate** (pass/fail per test)
-- **Latency (ms)** per test and total
-- **Token usage** (prompt / completion / total)
-- **Estimated cost ($)** using model pricing (mocked LLM in tests)
+After a run, a summary table is saved to `tests/results/live_eval_summary.txt` (script) or `tests/results/test_summary.txt` (pytest) with:
+
+- **Task success rate** (pass/fail per prompt)
+- **Wall time (seconds)** per prompt and total
+- **LLM calls** and separate **LLM vs tool/API** time
+- **Token usage** when the provider returns usage metadata
+- **Estimated cost ($)** from model pricing (Ollama local = $0)
 
 ## Troubleshooting
 
