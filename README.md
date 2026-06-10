@@ -242,7 +242,4 @@ Times depend on your machine, model, and inbox size. Re-run `python scripts/live
 **Never commit** `.env` or `token.json`.
 
 ## License
-
-Copyright (c) 2026 Cindy Fan. All rights reserved.
-
-This software and its associated documentation files are proprietary and confidential. Unauthorized copying, transfer, modification, or distribution of this file, via any medium, is strictly prohibited.
+Open Source
